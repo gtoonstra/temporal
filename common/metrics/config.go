@@ -36,6 +36,9 @@ import (
 	"github.com/uber-go/tally/v4/prometheus"
 	"golang.org/x/exp/maps"
 
+	dogstatsd "github.com/DataDog/datadog-go/statsd"
+	dogstatsdreporter "go.temporal.io/server/common/metrics/tally/dogstatsd"
+
 	"go.temporal.io/server/common/log"
 	"go.temporal.io/server/common/log/tag"
 	statsdreporter "go.temporal.io/server/common/metrics/tally/statsd"
@@ -88,6 +91,9 @@ type (
 		// If FlushBytes is unspecified, it defaults  to 1432 bytes, which is
 		// considered safe for local traffic.
 		FlushBytes int `yaml:"flushBytes"`
+		// DatadogFormat formats the statsd metric names to be compatible with
+		// the DogStatsD format: https://docs.datadoghq.com/developers/dogstatsd/datagram_shell/?tab=metrics
+		DatadogFormat bool `yaml:"datadogFormat"`
 		// Reporter allows additional configuration of the stats reporter, e.g. with custom tagging options.
 		Reporter StatsdReporterConfig `yaml:"reporter"`
 	}
@@ -288,6 +294,9 @@ var (
 // statsd > prometheus
 func NewScope(logger log.Logger, c *Config) tally.Scope {
 	if c.Statsd != nil {
+		if c.Statsd.DatadogFormat {
+			return c.newDogstatsdScope(logger)
+		}
 		return newStatsdScope(logger, c)
 	}
 	if c.Prometheus != nil {
@@ -408,6 +417,29 @@ func newStatsdScope(logger log.Logger, c *Config) tally.Scope {
 		TagSeparator: c.Statsd.Reporter.TagSeparator,
 	}
 	reporter := statsdreporter.NewReporter(statter, opts)
+	scopeOpts := tally.ScopeOptions{
+		Tags:     c.Tags,
+		Reporter: reporter,
+		Prefix:   c.Prefix,
+	}
+	scope, _ := tally.NewRootScope(scopeOpts, time.Second)
+	return scope
+}
+
+// newDogstatsdScope returns a new statsd scope using the dogstatsd client
+// with a default reporting interval of a second
+func (c *Metrics) newDogstatsdScope(logger log.Logger) tally.Scope {
+	config := c.Statsd
+	if len(config.HostPort) == 0 {
+		return tally.NoopScope
+	}
+
+	client, err := dogstatsd.New(config.HostPort, dogstatsd.WithBufferFlushInterval(config.FlushInterval), dogstatsd.WithMaxBytesPerPayload(config.FlushBytes))
+	if err != nil {
+		logger.Fatal("error creating dogstatsd client", tag.Error(err))
+	}
+
+	reporter := dogstatsdreporter.NewReporter(client)
 	scopeOpts := tally.ScopeOptions{
 		Tags:     c.Tags,
 		Reporter: reporter,
