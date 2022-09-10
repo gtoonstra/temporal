@@ -2,12 +2,12 @@ package metrics
 
 import (
     "fmt"
+    "math"
     "sort"
-    nflxTag "temporal/internal/tag"
     "time"
 
     "github.com/DataDog/datadog-go/statsd"
-    "github.com/uber-go/tally"
+    "github.com/uber-go/tally/v4"
     "go.temporal.io/server/common/log"
     "go.temporal.io/server/common/log/tag"
 )
@@ -53,7 +53,7 @@ func NewReporter(config *DogstatsdReporterConfig, logger log.Logger) tally.Stats
 
     client, err := statsd.New(hostPort, statsd.WithBufferFlushInterval(flushInterval), statsd.WithMaxBytesPerPayload(flushBytes))
     if err != nil {
-        logger.Fatal("error creating dogstatsd client", nflxTag.Extension(extensionName), tag.Error(err))
+        logger.Fatal("error creating dogstatsd client", tag.Error(err))
     }
     return dogstatsdReporter{
         dogstatsd: client,
@@ -75,39 +75,73 @@ func (r dogstatsdReporter) Tagging() bool {
 
 func (r dogstatsdReporter) Flush() {
     if err := r.dogstatsd.Flush(); err != nil {
-        r.log.Error("error while flushing", nflxTag.Extension(extensionName), tag.Error(err))
+        r.log.Error("error while flushing", tag.Error(err))
     }
 }
 
 func (r dogstatsdReporter) ReportCounter(name string, tags map[string]string, value int64) {
     name = r.sanitizeMetricName(name)
     if err := r.dogstatsd.Count(name, value, r.marshalTags(tags), 1); err != nil {
-        r.log.Error("failed reporting counter", nflxTag.Extension(extensionName), tag.Error(err))
+        r.log.Error("failed reporting counter", tag.Error(err))
     }
 }
 
 func (r dogstatsdReporter) ReportGauge(name string, tags map[string]string, value float64) {
     name = r.sanitizeMetricName(name)
     if err := r.dogstatsd.Gauge(name, value, r.marshalTags(tags), 1); err != nil {
-        r.log.Error("failed reporting gauge", nflxTag.Extension(extensionName), tag.Error(err))
+        r.log.Error("failed reporting gauge", tag.Error(err))
     }
 }
 
 func (r dogstatsdReporter) ReportTimer(name string, tags map[string]string, interval time.Duration) {
     name = r.sanitizeMetricName(name)
     if err := r.dogstatsd.Timing(name, interval, r.marshalTags(tags), 1); err != nil {
-        r.log.Error("failed reporting timer", nflxTag.Extension(extensionName), tag.Error(err))
+        r.log.Error("failed reporting timer", tag.Error(err))
     }
 }
 
 func (r dogstatsdReporter) ReportHistogramValueSamples(name string, tags map[string]string, buckets tally.Buckets, bucketLowerBound, bucketUpperBound float64, samples int64) {
     // TODO(rz): Temporal does not currently use histograms
-    r.log.Warn("unexpected call to ReportHistogramValueSamples", nflxTag.Extension(extensionName))
+    r.log.Warn("unexpected call to ReportHistogramValueSamples")
+    name = fmt.Sprintf("%s.%s-%s", r.sanitizeMetricName(name),
+                r.valueBucketString(bucketLowerBound),
+                r.valueBucketString(bucketUpperBound))
+    r.dogstatsd.Count(name, samples, r.marshalTags(tags), 1)
 }
 
 func (r dogstatsdReporter) ReportHistogramDurationSamples(name string, tags map[string]string, buckets tally.Buckets, bucketLowerBound, bucketUpperBound time.Duration, samples int64) {
     // TODO(rz): Temporal does not currently use histograms
-    r.log.Warn("unexpected call to ReportHistogramDurationSamples", nflxTag.Extension(extensionName))
+    r.log.Warn("unexpected call to ReportHistogramDurationSamples")
+    name = fmt.Sprintf("%s.%s-%s", r.sanitizeMetricName(name),
+                r.durationBucketString(bucketLowerBound),
+                r.durationBucketString(bucketUpperBound))
+    r.dogstatsd.Count(name, samples, r.marshalTags(tags), 1)
+}
+
+// TODO: Figure out if this works
+func (r dogstatsdReporter) valueBucketString(
+	upperBound float64,
+) string {
+	if upperBound == math.MaxFloat64 {
+		return "infinity"
+	}
+	if upperBound == -math.MaxFloat64 {
+		return "-infinity"
+	}
+	return fmt.Sprintf("%.04f", upperBound)
+}
+
+// TODO: Figure out if this works
+func (r dogstatsdReporter) durationBucketString(
+	upperBound time.Duration,
+) string {
+	if upperBound == time.Duration(math.MaxInt64) {
+		return "infinity"
+	}
+	if upperBound == time.Duration(math.MinInt64) {
+		return "-infinity"
+	}
+	return upperBound.String()
 }
 
 func (r dogstatsdReporter) marshalTags(tags map[string]string) []string {

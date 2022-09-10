@@ -32,6 +32,7 @@ require (
 	github.com/temporalio/ringpop-go v0.0.0-20220818230611-30bf23b490b2
 	github.com/temporalio/tchannel-go v1.22.1-0.20220818200552-1be8d8cffa5b
 	github.com/temporalio/tctl-kit v0.0.0-20220512165751-9c751176dd14
+	github.com/uber-go/tally v3.3.15+incompatible
 	github.com/uber-go/tally/v4 v4.1.2
 	github.com/urfave/cli v1.22.9
 	github.com/urfave/cli/v2 v2.10.2
@@ -67,6 +68,7 @@ require (
 	cloud.google.com/go v0.102.1 // indirect
 	cloud.google.com/go/compute v1.7.0 // indirect
 	cloud.google.com/go/iam v0.3.0 // indirect
+	github.com/DataDog/datadog-go v4.2.0+incompatible
 	github.com/apache/thrift v0.16.0 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -74,7 +76,6 @@ require (
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
-	github.com/DataDog/datadog-go v4.2.0+incompatible
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/facebookgo/clock v0.0.0-20150410010913-600d898af40a // indirect
 	github.com/go-logr/logr v1.2.3 // indirect

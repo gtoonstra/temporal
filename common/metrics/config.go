@@ -36,7 +36,6 @@ import (
 	"github.com/uber-go/tally/v4/prometheus"
 	"golang.org/x/exp/maps"
 
-	dogstatsd "github.com/DataDog/datadog-go/statsd"
 	dogstatsdreporter "go.temporal.io/server/common/metrics/tally/dogstatsd"
 
 	"go.temporal.io/server/common/log"
@@ -295,7 +294,7 @@ var (
 func NewScope(logger log.Logger, c *Config) tally.Scope {
 	if c.Statsd != nil {
 		if c.Statsd.DatadogFormat {
-			return c.newDogstatsdScope(logger)
+			return newDogstatsdScope(logger, c)
 		}
 		return newStatsdScope(logger, c)
 	}
@@ -428,18 +427,17 @@ func newStatsdScope(logger log.Logger, c *Config) tally.Scope {
 
 // newDogstatsdScope returns a new statsd scope using the dogstatsd client
 // with a default reporting interval of a second
-func (c *Metrics) newDogstatsdScope(logger log.Logger) tally.Scope {
+func newDogstatsdScope(logger log.Logger, c *Config) tally.Scope {
 	config := c.Statsd
 	if len(config.HostPort) == 0 {
 		return tally.NoopScope
 	}
 
-	client, err := dogstatsd.New(config.HostPort, dogstatsd.WithBufferFlushInterval(config.FlushInterval), dogstatsd.WithMaxBytesPerPayload(config.FlushBytes))
-	if err != nil {
-		logger.Fatal("error creating dogstatsd client", tag.Error(err))
-	}
-
-	reporter := dogstatsdreporter.NewReporter(client)
+	reporter := dogstatsdreporter.NewReporter(&dogstatsdreporter.DogstatsdReporterConfig{
+            HostPort:       config.HostPort,
+            FlushInterval: config.FlushInterval,
+            FlushBytes:    config.FlushBytes,
+        }, logger)
 	scopeOpts := tally.ScopeOptions{
 		Tags:     c.Tags,
 		Reporter: reporter,
