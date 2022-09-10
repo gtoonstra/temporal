@@ -55,6 +55,7 @@ func NewReporter(config *DogstatsdReporterConfig, logger log.Logger) tally.Stats
     if err != nil {
         logger.Fatal("error creating dogstatsd client", tag.Error(err))
     }
+    logger.Info(fmt.Sprintf("Created dogstatsd reporter at %s", hostPort))
     return dogstatsdReporter{
         dogstatsd: client,
         log:       logger,
