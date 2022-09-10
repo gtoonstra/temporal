@@ -32,7 +32,6 @@ require (
 	github.com/temporalio/ringpop-go v0.0.0-20220818230611-30bf23b490b2
 	github.com/temporalio/tchannel-go v1.22.1-0.20220818200552-1be8d8cffa5b
 	github.com/temporalio/tctl-kit v0.0.0-20220512165751-9c751176dd14
-	github.com/uber-go/tally v3.3.15+incompatible
 	github.com/uber-go/tally/v4 v4.1.2
 	github.com/urfave/cli v1.22.9
 	github.com/urfave/cli/v2 v2.10.2
