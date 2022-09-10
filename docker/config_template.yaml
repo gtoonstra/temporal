@@ -270,6 +270,9 @@ global:
         statsd:
             hostPort: {{ .Env.STATSD_ENDPOINT }}
             prefix: "temporal"
+            {{- if .Env.STATSD_DATADOG_FORMAT }}
+            datadogFormat: true
+            {{- end }}
     {{- else if .Env.PROMETHEUS_ENDPOINT }}
     metrics:
         prometheus:
